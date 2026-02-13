@@ -20,13 +20,13 @@ import (
 
 func TestCmdRun(t *testing.T) {
 	is := is.New(t)
-	cmd := New("")
+	cmd := New()
 	is.NoErr(shellCommand(t, cmd, "exit 0").Run(context.Background()))
 }
 
 func TestCmdRunError(t *testing.T) {
 	is := is.New(t)
-	cmd := New("")
+	cmd := New()
 	err := shellCommand(t, cmd, "exit 7").Run(context.Background())
 	is.Equal(err == nil, false)
 }
@@ -34,7 +34,7 @@ func TestCmdRunError(t *testing.T) {
 func TestProcessStopAfterExitDoesNotLeakGoroutines(t *testing.T) {
 	is := is.New(t)
 	base := runtime.NumGoroutine()
-	cmd := New("")
+	cmd := New()
 
 	for i := 0; i < 120; i++ {
 		p, err := shellCommand(t, cmd, "exit 0").Start()
@@ -55,7 +55,7 @@ func TestProcessStopAfterExitDoesNotLeakGoroutines(t *testing.T) {
 func TestProcessRestart(t *testing.T) {
 	is := is.New(t)
 	out := new(bytes.Buffer)
-	cmd := New("")
+	cmd := New()
 	cmd.Stdout = out
 	cmd.Stderr = io.Discard
 
@@ -72,7 +72,7 @@ func TestProcessRestart(t *testing.T) {
 
 func TestProcessWaitContextCanceledKillsProcess(t *testing.T) {
 	is := is.New(t)
-	cmd := New("")
+	cmd := New()
 	p, err := sleepCommand(t, cmd, 5).Start()
 	is.NoErr(err)
 
@@ -86,7 +86,7 @@ func TestProcessWaitContextCanceledKillsProcess(t *testing.T) {
 
 func TestProcessStopAfterWaitReturnsNil(t *testing.T) {
 	is := is.New(t)
-	cmd := New("")
+	cmd := New()
 	p, err := shellCommand(t, cmd, "exit 0").Start()
 	is.NoErr(err)
 
@@ -99,7 +99,8 @@ func TestProcessRestartPreservesDirAndEnv(t *testing.T) {
 	token := "restart-token-123"
 	dir := t.TempDir()
 	out := new(bytes.Buffer)
-	cmd := New(dir)
+	cmd := New()
+	cmd.Dir = dir
 	cmd.Stdout = out
 	cmd.Stderr = io.Discard
 	cmd.Env = append(os.Environ(), "GO_SHELL_RESTART_TOKEN="+token)

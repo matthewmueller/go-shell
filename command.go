@@ -18,9 +18,9 @@ type Command interface {
 	Run(ctx context.Context) error
 }
 
-func New(dir string) *Exec {
+func New() *Exec {
 	return &Exec{
-		Dir:    dir,
+		Dir:    ".",
 		Env:    os.Environ(),
 		Stderr: os.Stderr,
 		Stdout: os.Stdout,
