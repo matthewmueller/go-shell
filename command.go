@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
@@ -15,12 +16,17 @@ type Commands interface {
 // Command is a single command that can be started or run
 type Command interface {
 	Start() (*Process, error)
-	Run(ctx context.Context) error
+	Run(ctx context.Context) (string, error)
+	Execute(ctx context.Context) error
 }
 
-func New() *Exec {
+func Default() *Exec {
+	return New(".")
+}
+
+func New(dir string) *Exec {
 	return &Exec{
-		Dir:    ".",
+		Dir:    dir,
 		Env:    os.Environ(),
 		Stderr: os.Stderr,
 		Stdout: os.Stdout,
@@ -56,6 +62,7 @@ func (c *Cmd) exec() *exec.Cmd {
 	return (*exec.Cmd)(c)
 }
 
+// Start the command, returning a process.
 func (c *Cmd) Start() (*Process, error) {
 	if err := c.exec().Start(); err != nil {
 		return nil, err
@@ -65,10 +72,28 @@ func (c *Cmd) Start() (*Process, error) {
 	return p, nil
 }
 
-func (c *Cmd) Run(ctx context.Context) error {
+// Run the command returning stdout
+func (c *Cmd) Run(ctx context.Context) (stdout string, err error) {
+	out := new(bytes.Buffer)
+	c.Stdout = out
+	p, err := c.Start()
+	if err != nil {
+		return "", err
+	}
+	if err := p.Wait(ctx); err != nil {
+		return "", err
+	}
+	return out.String(), nil
+}
+
+// Execute the command
+func (c *Cmd) Execute(ctx context.Context) (err error) {
 	p, err := c.Start()
 	if err != nil {
 		return err
 	}
-	return p.Wait(ctx)
+	if err := p.Wait(ctx); err != nil {
+		return err
+	}
+	return nil
 }

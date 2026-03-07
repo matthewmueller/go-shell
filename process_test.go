@@ -1,4 +1,4 @@
-package shell
+package shell_test
 
 import (
 	"bytes"
@@ -15,26 +15,27 @@ import (
 	"time"
 
 	"github.com/matryer/is"
+	"github.com/matthewmueller/go-shell"
 	"github.com/matthewmueller/testchild"
 )
 
 func TestCmdRun(t *testing.T) {
 	is := is.New(t)
-	cmd := New()
-	is.NoErr(shellCommand(t, cmd, "exit 0").Run(context.Background()))
+	cmd := shell.Default()
+	is.NoErr(shellCommand(t, cmd, "exit 0").Execute(context.Background()))
 }
 
 func TestCmdRunError(t *testing.T) {
 	is := is.New(t)
-	cmd := New()
-	err := shellCommand(t, cmd, "exit 7").Run(context.Background())
+	cmd := shell.Default()
+	err := shellCommand(t, cmd, "exit 7").Execute(context.Background())
 	is.Equal(err == nil, false)
 }
 
 func TestProcessStopAfterExitDoesNotLeakGoroutines(t *testing.T) {
 	is := is.New(t)
 	base := runtime.NumGoroutine()
-	cmd := New()
+	cmd := shell.Default()
 
 	for i := 0; i < 120; i++ {
 		p, err := shellCommand(t, cmd, "exit 0").Start()
@@ -55,7 +56,7 @@ func TestProcessStopAfterExitDoesNotLeakGoroutines(t *testing.T) {
 func TestProcessRestart(t *testing.T) {
 	is := is.New(t)
 	out := new(bytes.Buffer)
-	cmd := New()
+	cmd := shell.Default()
 	cmd.Stdout = out
 	cmd.Stderr = io.Discard
 
@@ -72,7 +73,7 @@ func TestProcessRestart(t *testing.T) {
 
 func TestProcessWaitContextCanceledKillsProcess(t *testing.T) {
 	is := is.New(t)
-	cmd := New()
+	cmd := shell.Default()
 	p, err := sleepCommand(t, cmd, 5).Start()
 	is.NoErr(err)
 
@@ -86,7 +87,7 @@ func TestProcessWaitContextCanceledKillsProcess(t *testing.T) {
 
 func TestProcessStopAfterWaitReturnsNil(t *testing.T) {
 	is := is.New(t)
-	cmd := New()
+	cmd := shell.Default()
 	p, err := shellCommand(t, cmd, "exit 0").Start()
 	is.NoErr(err)
 
@@ -99,7 +100,7 @@ func TestProcessRestartPreservesDirAndEnv(t *testing.T) {
 	token := "restart-token-123"
 	dir := t.TempDir()
 	out := new(bytes.Buffer)
-	cmd := New()
+	cmd := shell.Default()
 	cmd.Dir = dir
 	cmd.Stdout = out
 	cmd.Stderr = io.Discard
@@ -126,7 +127,7 @@ func TestProcessStopContextCancelFallsBackToKill(t *testing.T) {
 		child.Stdout = io.Discard
 		child.Stderr = io.Discard
 
-		p, err := ((*Cmd)(child)).Start()
+		p, err := ((*shell.Cmd)(child)).Start()
 		is.NoErr(err)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -153,7 +154,7 @@ func TestProcessStopContextCancelFallsBackToKill(t *testing.T) {
 	})
 }
 
-func shellCommand(t *testing.T, cmd *Exec, script string) *Cmd {
+func shellCommand(t *testing.T, cmd *shell.Exec, script string) *shell.Cmd {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		return cmd.Command("cmd", "/C", script)
@@ -161,7 +162,7 @@ func shellCommand(t *testing.T, cmd *Exec, script string) *Cmd {
 	return cmd.Command("sh", "-c", script)
 }
 
-func restartProbeCommand(t *testing.T, cmd *Exec) *Cmd {
+func restartProbeCommand(t *testing.T, cmd *shell.Exec) *shell.Cmd {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		return cmd.Command("cmd", "/C", "echo %GO_SHELL_RESTART_TOKEN%^|%CD%")
@@ -169,7 +170,7 @@ func restartProbeCommand(t *testing.T, cmd *Exec) *Cmd {
 	return cmd.Command("sh", "-c", `printf "%s|%s\n" "$GO_SHELL_RESTART_TOKEN" "$(pwd -P)"`)
 }
 
-func sleepCommand(t *testing.T, cmd *Exec, seconds int) *Cmd {
+func sleepCommand(t *testing.T, cmd *shell.Exec, seconds int) *shell.Cmd {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		return cmd.Command("cmd", "/C", "ping -n 6 127.0.0.1 >NUL")
